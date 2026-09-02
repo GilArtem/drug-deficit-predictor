@@ -1,0 +1,115 @@
+# === Python ===
+# Виртуальное окружение
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# Кеш Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Установочные файлы
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# === IDE и редакторы ===
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Общие
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Секреты и переменные окружения ===
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+
+# === Данные ===
+# Исходные данные (большие файлы)
+data/raw/*.csv
+data/raw/*.xlsx
+data/raw/*.xls
+data/raw/*.parquet
+
+# Обработанные данные
+data/processed/*.csv
+data/processed/*.xlsx
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+
+# === Модели машинного обучения ===
+models/*.pkl
+models/*.joblib
+models/*.h5
+models/*.pb
+models/*.onnx
+
+# === Логи и временные файлы ===
+logs/
+*.log
+*.tmp
+*.temp
+*.out
+*.err
+*.cache
+
+# === Отчеты и графики ===
+*.html
+*.pdf
+*.png
+*.jpg
+*.svg
+
+# Jupyter
+*.ipynb_checkpoints/
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# === Docker ===
+*.pid
+.pytest_cache/
+
+# === Тесты и покрытие ===
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.pytest_cache/
+*.cover
+.hypothesis/
+
+# === Документация ===
+site/
+docs/_build/
+
+# === Файлы проекта ===
+*.bak
+*.orig
+*.rej
+*.patch
+
+# === Временные файлы операционной системы ===
+.directory
+~$*
