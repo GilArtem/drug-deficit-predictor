@@ -15,6 +15,10 @@ app/main.py — точка входа FastAPI-сервиса прогнозир�
 Эндпоинты (MVP):
 - GET /api/health          — health-check (БД + модель + FeatureBuilder)
 - GET /                     — простой «сервис работает» 
+
+Ссылки при активации:
+- http://localhost:8000/api/health
+- http://localhost:8000/docs
 """
 
 from __future__ import annotations
@@ -22,7 +26,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -30,6 +34,7 @@ from app.config import get_settings
 from app.core.db import check_db_health, dispose_engine, get_engine
 from app.core.feature_builder import get_builder, init_feature_builder
 from app.core.model_loader import check_model_health, get_model
+from app.schemas.response import DatabaseStatus, FeatureBuilderStatus, HealthComponents, HealthResponse, ModelStatus
 
 
 # ============================================================
@@ -127,8 +132,16 @@ app.add_middleware(
 # ЭНДПОИНТЫ
 # ============================================================
 
-@app.get("/api/health", tags=["system"], summary="Health-check")
-def health(request: Request) -> JSONResponse:
+@app.get(
+        "/api/health", 
+        tags=["system"], 
+        summary="Health-check",
+        response_model=HealthResponse,
+        responses={
+            503: {"model": HealthResponse, "description": "Degraded"}
+        }
+    )
+def health() -> HealthResponse:
     """
     Сводная проверка: БД + модель + FeatureBuilder.
 
@@ -153,35 +166,28 @@ def health(request: Request) -> JSONResponse:
     except Exception as e:
         fb_status = {"status": "error", "n_features": None, "error": str(e)}
 
-    components = {
-        "database": db_status,
-        "model": model_status,
-        "feature_builder": fb_status,
-    }
-
-    # Определяем общий статус:
-    # - "ok"       — все три ok
-    # - "degraded" — есть ok, но не все (часть работает)
-    # - "error"    — ни один не ok
-    statuses = [c["status"] for c in components.values()]
-    if all(s == "ok" for s in statuses):
-        overall = "ok"
-        http_code = 200
-    elif any(s == "ok" for s in statuses):
-        overall = "degraded"
-        http_code = 503
+    statuses = [db_status["status"], model_status["status"], fb_status["status"]]
+    if all(s == 'ok' for s in statuses):
+        overall, http_code = 'ok', 200
+    elif any(s == 'ok' for s in statuses):
+        overall, http_code = 'degraded', 503
     else:
-        overall = "error"
-        http_code = 503
+        overall, http_code = 'error', 503
+
+    body = HealthResponse(
+        status=overall,
+        app=settings.app_name,
+        version=settings.app_version,
+        components=HealthComponents(
+            database=DatabaseStatus(**db_status),
+            model=ModelStatus(**model_status),
+            feature_builder=FeatureBuilderStatus(**fb_status),
+        ),
+    )
 
     return JSONResponse(
         status_code=http_code,
-        content={
-            "status": overall,
-            "app": settings.app_name,
-            "version": settings.app_version,
-            "components": components,
-        },
+        content=body.model_dump(mode='json', by_alias=True)
     )
 
 
