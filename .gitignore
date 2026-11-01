@@ -117,3 +117,4 @@ docs/_build/
 # ---------- Временные ----------
 _smoke_test.py
 _test_search.py
+_test_risk.py
