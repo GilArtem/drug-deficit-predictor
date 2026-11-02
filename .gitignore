@@ -119,3 +119,4 @@ _smoke_test.py
 _test_search.py
 _test_risk.py
 _test_rec.py
+_test_routers.py

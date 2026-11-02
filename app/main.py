@@ -36,6 +36,13 @@ from app.core.feature_builder import get_builder, init_feature_builder
 from app.core.model_loader import check_model_health, get_model
 from app.schemas.response import DatabaseStatus, FeatureBuilderStatus, HealthComponents, HealthResponse, ModelStatus
 
+# ============================================================
+# РОУТЕРЫ
+# ============================================================
+from app.routers import risk as risk_router
+from app.routers import search as search_router
+
+
 
 # ============================================================
 # ЛОГИРОВАНИЕ
@@ -131,6 +138,8 @@ app.add_middleware(
 # ============================================================
 # ЭНДПОИНТЫ
 # ============================================================
+app.include_router(search_router.router)
+app.include_router(risk_router.router)
 
 @app.get(
         "/api/health", 
