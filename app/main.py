@@ -29,6 +29,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.config import get_settings
 from app.core.db import check_db_health, dispose_engine, get_engine
@@ -41,7 +43,6 @@ from app.schemas.response import DatabaseStatus, FeatureBuilderStatus, HealthCom
 # ============================================================
 from app.routers import risk as risk_router
 from app.routers import search as search_router
-
 
 
 # ============================================================
@@ -134,6 +135,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================
+# СТАТИКА
+# ============================================================
+# app/static/ → /static/...
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # ============================================================
 # ЭНДПОИНТЫ
@@ -150,6 +156,7 @@ app.include_router(risk_router.router)
             503: {"model": HealthResponse, "description": "Degraded"}
         }
     )
+
 def health() -> HealthResponse:
     """
     Сводная проверка: БД + модель + FeatureBuilder.
@@ -200,32 +207,37 @@ def health() -> HealthResponse:
     )
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def root() -> str:
-    """
-    Заглушка главной страницы. Далее заменим на реальный UI.
-    """
-    return f"""
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="utf-8">
-        <title>{settings.app_name}</title>
-        <style>
-            body {{ font-family: system-ui, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 20px; }}
-            h1 {{ color: #1e3a8a; }}
-            code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }}
-            a {{ color: #2563eb; }}
-        </style>
-    </head>
-    <body>
-        <h1>💊 {settings.app_name}</h1>
-        <p>Версия <code>{settings.app_version}</code> — сервис работает.</p>
-        <p>
-            <a href="/api/health">/api/health</a> — проверка статуса<br>
-            <a href="/docs">/docs</a> — Swagger UI (интерактивная документация)
-        </p>
-        <p><em>UI появится позже.</em></p>
-    </body>
-    </html>
-    """
+# @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+# def root() -> str:
+#     """
+#     Заглушка главной страницы. Далее заменим на реальный UI.
+#     """
+#     return f"""
+#     <!DOCTYPE html>
+#     <html lang="ru">
+#     <head>
+#         <meta charset="utf-8">
+#         <title>{settings.app_name}</title>
+#         <style>
+#             body {{ font-family: system-ui, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 20px; }}
+#             h1 {{ color: #1e3a8a; }}
+#             code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }}
+#             a {{ color: #2563eb; }}
+#         </style>
+#     </head>
+#     <body>
+#         <h1>💊 {settings.app_name}</h1>
+#         <p>Версия <code>{settings.app_version}</code> — сервис работает.</p>
+#         <p>
+#             <a href="/api/health">/api/health</a> — проверка статуса<br>
+#             <a href="/docs">/docs</a> — Swagger UI (интерактивная документация)
+#         </p>
+#         <p><em>UI появится позже.</em></p>
+#     </body>
+#     </html>
+#     """
+
+@app.get("/", response_class=FileResponse, include_in_schema=False)
+def root():
+    """Главная страница — отдаём UI."""
+    return FileResponse("app/static/index.html")
