@@ -27,7 +27,6 @@ from typing import Optional
 import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-
 from app.core.feature_builder import build_features
 from app.core.model_loader import CLASS_LABELS, predict_proba
 from app.schemas.response import (
@@ -37,6 +36,7 @@ from app.schemas.response import (
     RiskProbabilities,
     RiskResponse,
 )
+from app.services.recommendation import generate_recommendations 
 
 logger = logging.getLogger(__name__)
 
@@ -146,9 +146,10 @@ def get_risk(
         )
 
         # --- 6. Рекомендации (Шаг 9 — заглушка; заменим на генератор) ---
-        recommendations = _placeholder_recommendations(
-            pred_class=pred_class, snapshot=snapshot
-        )
+        # recommendations = _placeholder_recommendations(
+        #     pred_class=pred_class, snapshot=snapshot
+        # )
+        recommendations = generate_recommendations(pred_class, snapshot)
 
         logger.info(
             f"Прогноз {smnn_code}: class={pred_class} ({CLASS_LABELS[pred_class]}), "
@@ -201,34 +202,33 @@ def _make_snapshot(features: pd.DataFrame) -> FeaturesSnapshot:
     )
 
 
-# ============================================================
-# РЕКОМЕНДАЦИИ — ЗАГЛУШКА (заменим на Шаге 9)
-# ============================================================
-
-def _placeholder_recommendations(pred_class: int, snapshot: FeaturesSnapshot) -> list[str]:
-    """
-    Простые рекомендации по классу риска.
-    Шаг 9 заменит на полноценный recommendation.py.
-    """
-    if pred_class == 2:  # высокий
-        recs = [
-            "Увеличить страховой запас (рекомендуется ×1.5 от текущего).",
-            "Связаться с альтернативными поставщиками.",
-        ]
-        if snapshot.has_atc_substitutes:
-            recs.append("Рассмотреть аналоги по ATC-группе.")
-        if snapshot.is_essential:
-            recs.append("⚠️ ЖНВЛП — критичный препарат, эскалировать в закупки.")
-    elif pred_class == 1:  # средний
-        recs = [
-            "Мониторить остатки еженедельно.",
-            "Пересмотреть нормативы страхового запаса.",
-        ]
-        if snapshot.is_essential:
-            recs.append("ЖНВЛП — приоритетный контроль.")
-    else:  # низкий
-        recs = [
-            "Поддерживать текущий уровень запаса.",
-            "Плановый пересмотр — через квартал.",
-        ]
-    return recs
+# # ============================================================
+# # РЕКОМЕНДАЦИИ — ЗАГЛУШКА (заменим на Шаге 9)
+# # ============================================================
+# def _placeholder_recommendations(pred_class: int, snapshot: FeaturesSnapshot) -> list[str]:
+#     """
+#     Простые рекомендации по классу риска.
+#     Шаг 9 заменит на полноценный recommendation.py.
+#     """
+#     if pred_class == 2:  # высокий
+#         recs = [
+#             "Увеличить страховой запас (рекомендуется ×1.5 от текущего).",
+#             "Связаться с альтернативными поставщиками.",
+#         ]
+#         if snapshot.has_atc_substitutes:
+#             recs.append("Рассмотреть аналоги по ATC-группе.")
+#         if snapshot.is_essential:
+#             recs.append("⚠️ ЖНВЛП — критичный препарат, эскалировать в закупки.")
+#     elif pred_class == 1:  # средний
+#         recs = [
+#             "Мониторить остатки еженедельно.",
+#             "Пересмотреть нормативы страхового запаса.",
+#         ]
+#         if snapshot.is_essential:
+#             recs.append("ЖНВЛП — приоритетный контроль.")
+#     else:  # низкий
+#         recs = [
+#             "Поддерживать текущий уровень запаса.",
+#             "Плановый пересмотр — через квартал.",
+#         ]
+#     return recs
