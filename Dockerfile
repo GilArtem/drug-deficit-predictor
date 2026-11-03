@@ -1,9 +1,14 @@
 # ============================================================
-# Многоступенчатая сборка:
-#   Stage 1 (builder): ставим зависимости в отдельную папку
-#   Stage 2 (runtime): копируем только нужное
+# Dockerfile для Drug Deficit Predictor
 #
-# Зачем: финальный image меньше (не тащим компиляторы).
+# Многоступенчатая сборка:
+#   Stage 1 (builder): ставим зависимости в /app/venv
+#   Stage 2 (runtime): копируем venv из builder-а (тот же путь!)
+#
+# ⚠️ КЛЮЧЕВОЙ МОМЕНТ: venv создаётся в /app/venv (НЕ в /build/venv),
+# чтобы shebang в скриптах (uvicorn, pip, fastapi) совпадал с runtime-путём.
+# Если создать в /build/venv и скопировать в /app/venv — скрипты
+# будут искать /build/venv/bin/python (не существует) → "required file not found".
 #
 # Сборка:  docker build -t drug-deficit-api .
 # Запуск:  docker run --env-file .env -v ./models:/app/models drug-deficit-api
@@ -25,10 +30,13 @@ WORKDIR /build
 # Сначала — только requirements.txt (для кэша слоёв)
 COPY requirements.txt .
 
-# Ставим зависимости в /build/venv (изолированно)
-RUN python -m venv /build/venv && \
-    /build/venv/bin/pip install --upgrade pip && \
-    /build/venv/bin/pip install --no-cache-dir -r requirements.txt
+# ⚠️ Создаём venv в /app/venv (а не в /build/venv!).
+# Причина: pip записывает shebang `#!/app/venv/bin/python` в скрипты
+# (uvicorn, pip, fastapi). Если venv в /build/venv → shebang `#!/build/venv/bin/python`
+# → в runtime-стадии /build/venv не существует → "required file not found".
+RUN python -m venv /app/venv && \
+    /app/venv/bin/pip install --upgrade pip && \
+    /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 
 # ============================================================
@@ -48,8 +56,9 @@ RUN apt-get update && \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем venv из builder
-COPY --from=builder /build/venv /app/venv
+# ⚠️ Копируем venv из builder-а. Путь /app/venv → /app/venv (тот же!),
+# чтобы shebang `#!/app/venv/bin/python` в скриптах был валидным.
+COPY --from=builder /app/venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
 # Копируем код приложения

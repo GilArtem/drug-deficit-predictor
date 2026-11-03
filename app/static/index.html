@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Прогноз дефицита лекарств</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💊</text></svg>">
+</head>
+<body>
+    <header class="header">
+        <div class="container header-inner">
+            <a href="/" class="logo">💊 <span>Drug Deficit Predictor</span></a>
+            <nav class="nav">
+                <a href="/docs" target="_blank">API Docs</a>
+                <a href="/api/health" target="_blank">Health</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Поиск -->
+        <section class="search-section">
+            <h1>Прогноз дефицита лекарственных средств</h1>
+            <p class="subtitle">
+                Введите название препарата — получите оценку риска дефицита
+                по данным реестра ЕСКЛП и ML-модели.
+            </p>
+
+            <form id="search-form" class="search-form" autocomplete="off">
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Например: ибупрофен, парацетамол, азитромицин..."
+                    minlength="1"
+                    maxlength="200"
+                    required
+                    autofocus
+                >
+                <button type="submit" id="search-btn">Искать</button>
+            </form>
+
+            <div id="status" class="status"></div>
+        </section>
+
+        <!-- Результаты -->
+        <section id="results-section" class="results-section hidden">
+            <div class="results-header">
+                <h2 id="results-title">Результаты</h2>
+                <div id="results-meta" class="results-meta"></div>
+            </div>
+            <div id="results" class="results-grid"></div>
+        </section>
+    </main>
+
+    <!-- Модалка карточки -->
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <button id="modal-close" class="modal-close" aria-label="Закрыть">×</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>
+                Курсовой проект · Модель: XGB-honest (Recall класса «Высокий» ≈ 0.96) ·
+                Данные: реестр ЕСКЛП Минздрава РФ
+            </p>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
