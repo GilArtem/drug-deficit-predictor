@@ -1,0 +1,62 @@
+# ============================================================
+# Запуск:    docker compose up
+# Остановка: docker compose down
+# Логи:      docker compose logs -f api
+#
+#  PostgreSQL у нас УДАЛЁННЫЙ (192.144.12.202) — 
+#    поэтому контейнер postgres НЕ нужен.
+#    .env должен содержать DB_HOST, DB_USER, DB_PASSWORD, DB_NAME.
+# ============================================================
+
+services:
+  api:
+    # Имя образа
+    image: drug-deficit-api:latest
+
+    # Собирать из Dockerfile в текущей папке
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Имя контейнера (удобно для docker ps / docker logs)
+    container_name: drug-deficit-api
+
+    # Порт на хосте : порт в контейнере
+    ports:
+      - "8000:8000"
+
+    # Переменные окружения из .env
+    env_file:
+      - .env
+
+    # Volume-ы: изменения кода видны без пересборки
+    volumes:
+      # Код (для --reload)
+      - ./app:/app/app
+      # Модели (не копируем в image)
+      - ./models:/app/models
+
+    # В dev — --reload, в prod — убрать
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+    # Рестарт при падении (не при --reload: uvicorn сам)
+    restart: unless-stopped
+
+    # Ждать healthcheck перед "здоровым" статусом
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+    # Логи (для удобства)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,39 @@
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+venv/
+.venv/
+
+# Тесты и временные
+_smoke_test.py
+_test_*.py
+tests/
+
+# Модели — монтируются как volume, не копируем в image
+models/
+
+# Локальные .env (в Docker передадим через env_file)
+.env
+.env.local
+
+# Документация
+README.md
+docs/
+*.md
+
+# Данные (если появятся)
+data/
+*.csv
+*.parquet
