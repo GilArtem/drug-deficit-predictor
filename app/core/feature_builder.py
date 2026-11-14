@@ -1,15 +1,15 @@
 """
 - app/core/feature_builder.py
 
-feature_builder.py — расчёт 74 признаков для honest-модели XGB-honest на лету.
+feature_builder.py — расчёт 75 признаков для honest-модели XGB-honest v2 на лету.
 
 Вход:  smnn_code
-Выход: DataFrame 1×74 с признаками в порядке metadata_v1.json['features']
+Выход: DataFrame 1×75 с признаками в порядке metadata_v2.json['features']
        минус PROXIES (current_stock_days, stock_to_sales_ratio)
 
-Эталон: synthetic_data.drug_features
+Эталон: synthetic_data.drug_features_2
 
-ВАЖНО (из Анализ_и_предобработка_данных.ipynb):
+ВАЖНО (из Генерация_и_загрузка_синтетики_2.ipynb):
 - producers_count считается по name_producer_normalized (справочник producer_canon)
 - country_group_mode — по country_group (справочник country_groups)
 - primary_unit_name — из unit_canon (канонические имена, не сырые)
@@ -17,6 +17,7 @@ feature_builder.py — расчёт 74 признаков для honest-моде
 - atc_substitutes_count — по LEFT(code_atc, 5), а не по первой букве
 - atc_is_unknown = (atc_level4_mode == 'Unkno')
 - has_russian_producer = MAX(is_russian), а не (country == 'РОССИЯ')
+- v2: динамика — из synthetic_data.drug_sales_2 и drug_stock_2
 """
 
 from __future__ import annotations
@@ -47,8 +48,8 @@ OHE_COLS = [
     'primary_unit_name',
 ]
 
-# защита от ошибки.  Если metadata_v1.json изменится и даст не 74, а 75 фич — программа упадёт с понятной ошибкой, а не выдаст молча мусор.
-EXPECTED_N_FEATURES_HONEST = 74
+# защита от ошибки.  Если metadata_v2.json изменится и даст не 75, а 76 фич — программа упадёт с понятной ошибкой, а не выдаст молча мусор.
+EXPECTED_N_FEATURES_HONEST = 75
 
 
 # ============================================================
@@ -94,7 +95,7 @@ class FeatureBuilder:
         self.engine = db_engine
 
         # --- OneHotEncoder ---
-        # загружаем обученный OneHotEncoder из onehot_encoder_v1.pkl. Он «помнит», какие категории видел при обучении 
+        # загружаем обученный OneHotEncoder из onehot_encoder_v2.pkl. Он «помнит», какие категории видел при обучении 
         # (15 ATC-групп, 7 групп стран, 6 типов единиц, 14 названий единиц).
         # ⚠️ Почему критично: если создать новый OneHotEncoder, он не будет знать категорий → 
         # создаст другие колонки → модель получит мусор. Надо использовать тот же encoder, что при обучении.
@@ -102,15 +103,15 @@ class FeatureBuilder:
         logger.info(f"OneHotEncoder: {[len(c) for c in self.ohe.categories_]}")
 
         # --- metadata ---
-        # загружаем metadata_v1.json, где лежит список всех 76 фич в правильном порядке.
+        # загружаем metadata_v2.json, где лежит список всех 77 фич в правильном порядке.
         with open(metadata_path, 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
 
         full_features = self.metadata['features']
-        # вычитаем 2 прокси → получаем 74 фичи honest.
+        # вычитаем 2 прокси → получаем 75 фич honest.
         self.honest_features = [f for f in full_features if f not in PROXIES]
 
-        # защита. Если получилось не 74 — падаем с ошибкой.
+        # защита. Если получилось не 75 — падаем с ошибкой.
         assert len(self.honest_features) == EXPECTED_N_FEATURES_HONEST, \
             f"Ожидалось {EXPECTED_N_FEATURES_HONEST} фич, получено {len(self.honest_features)}"
 
@@ -189,7 +190,7 @@ class FeatureBuilder:
     # ========================================================
 
     def _compute_static_features(self, df: pd.DataFrame) -> dict:
-        """ Расчёт 26 статических признаков"""
+        """ Расчёт 30 статических признаков"""
         n = len(df)
 
         # --- НОРМАЛИЗАЦИЯ ПРОИЗВОДИТЕЛЯ (как в ноутбуке!) ---
@@ -275,6 +276,8 @@ class FeatureBuilder:
         has_atc_substitutes = int(atc_substitutes_count > 0)
         log_atc_substitutes_count = float(np.log1p(atc_substitutes_count))
 
+        log_klp_code_count = log_products_count
+
         return {
             'products_count': products_count,
             'producers_count': producers_count,
@@ -295,7 +298,8 @@ class FeatureBuilder:
             'min_age': min_age,
             'max_age': max_age,
             'log_products_count': log_products_count,
-            'log_reg_num_count': log_reg_num_count,
+            'log_klp_code_count': log_klp_code_count,
+            'log_reg_num_count': log_reg_num_count,   
             'log_trade_count': log_trade_count,
             'log_producers_count': log_producers_count,
             'products_per_producer': products_per_producer,
@@ -318,14 +322,14 @@ class FeatureBuilder:
             SELECT 
                 month, 
                 sales_quantity 
-            FROM synthetic_data.drug_sales
+            FROM synthetic_data.drug_sales_2
             WHERE smnn_code = :smnn_code ORDER BY month DESC LIMIT 3
         """)
         q_stock = text("""
             SELECT 
                 month, 
                 stock_quantity 
-            FROM synthetic_data.drug_stock
+            FROM synthetic_data.drug_stock_2
             WHERE smnn_code = :smnn_code ORDER BY month DESC LIMIT 3
         """)
         with self.engine.connect() as conn:
@@ -466,15 +470,15 @@ class FeatureBuilder:
         """
         query = text("""
             WITH last_month AS (
-                SELECT MAX(month) AS max_month FROM synthetic_data.drug_sales
+                SELECT MAX(month) AS max_month FROM synthetic_data.drug_sales_2
             ),
             last_3m AS (
                 SELECT 
                     month, 
                     sales_quantity, 
                     stock_quantity
-                FROM synthetic_data.drug_sales
-                JOIN synthetic_data.drug_stock USING (smnn_code, month)
+                FROM synthetic_data.drug_sales_2
+                JOIN synthetic_data.drug_stock_2 USING (smnn_code, month)
                 WHERE month >= (SELECT max_month - INTERVAL '2 months' FROM last_month)
             )
             SELECT
@@ -505,7 +509,7 @@ class FeatureBuilder:
 _builder_instance: Optional[FeatureBuilder] = None
 
 
-def init_feature_builder(db_engine, ohe_path='models/onehot_encoder_v1.pkl', metadata_path='models/metadata_v1.json'):
+def init_feature_builder(db_engine, ohe_path='models/onehot_encoder_v2.pkl', metadata_path='models/metadata_v2.json'):
     """
     Что это: синглтон — глобальная переменная, которая создаётся один раз при старте FastAPI.
     Зачем: FeatureBuilder.__init__ делает 5+ SQL-запросов (кеши, справочники). 

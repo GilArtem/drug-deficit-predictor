@@ -3,7 +3,7 @@ app/core/model_loader.py — загрузка ML-модели.
 
 Содержит:
 - get_model():           синглтон XGBClassifier (загружается один раз)
-- get_metadata():        metadata_v1.json (кэш)
+- get_metadata():        metadata_v2.json (кэш)
 - predict_proba(features): удобная обёртка над model.predict_proba
 - check_model_health():  для /api/health
 
@@ -11,9 +11,9 @@ app/core/model_loader.py — загрузка ML-модели.
    Не вызывай joblib.load() в каждом запросе — это ~200–500 мс.
 
 Контракт с моделью:
-- n_features_in_ == 74 (после вычета PROXIES)
+- n_features_in_ == 75 (после вычета PROXIES)
 - classes_ == [0, 1, 2] (0=низкий, 1=средний, 2=высокий)
-- target = deficit_risk (см. metadata_v1.json)
+- target = deficit_risk (см. metadata_v2.json)
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Контракт с моделью (см. metadata_v1.json['features'] минус PROXIES)
+# Контракт с моделью (см. metadata_v2.json['features'] минус PROXIES)
 PROXIES = ["current_stock_days", "stock_to_sales_ratio"]
-EXPECTED_N_FEATURES_HONEST = 74
+EXPECTED_N_FEATURES_HONEST = 75
 EXPECTED_CLASSES = [0, 1, 2]
 
 # Человекочитаемые метки классов (для ответа API)
@@ -53,7 +53,7 @@ def get_model():
 
     При первом вызове:
     - Загружает .pkl через joblib.
-    - Проверяет контракт: n_features == 74, classes == [0,1,2].
+    - Проверяет контракт: n_features == 75, classes == [0,1,2].
     - Падает с понятной ошибкой, если контракт нарушен.
 
     ⚠️ Вызывается в startup (main.py). В роутерах — только из кэша.
@@ -97,7 +97,7 @@ def get_model():
 
 
 def get_metadata() -> dict:
-    """Возвращает metadata_v1.json (кэш)."""
+    """Возвращает metadata_v2.json (кэш)."""
     global _metadata
     if _metadata is not None:
         return _metadata
@@ -121,7 +121,7 @@ def predict_proba(features: pd.DataFrame) -> np.ndarray:
     """
     Обёртка над model.predict_proba.
 
-    features: DataFrame формы (n, 74) в порядке metadata['features'] минус PROXIES.
+    features: DataFrame формы (n, 75) в порядке metadata['features'] минус PROXIES.
               Обычно 1 строка — признаки одного СМНН.
 
     Возвращает: np.ndarray (n, 3) — вероятности классов [низкий, средний, высокий].
@@ -156,7 +156,7 @@ def check_model_health() -> dict:
         {
             "status": "ok" | "error",
             "model_type": "XGBClassifier",
-            "n_features": 74,
+            "n_features": 75,
             "classes": [0, 1, 2],
             "error": None | "..."
         }
@@ -174,7 +174,7 @@ def check_model_health() -> dict:
                 f"ожидалось {EXPECTED_N_FEATURES_HONEST}"
             )
 
-        # Минимальный smoke: 1 строка из 74 нулей с ПРАВИЛЬНЫМИ именами
+        # Минимальный smoke: 1 строка из 75 нулей с ПРАВИЛЬНЫМИ именами
         dummy = pd.DataFrame(
             np.zeros((1, EXPECTED_N_FEATURES_HONEST)),
             columns=honest_features,

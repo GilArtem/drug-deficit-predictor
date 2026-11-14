@@ -8,7 +8,7 @@ app/config.py — центральные настройки приложения
     from app.config import get_settings
     settings = get_settings()
     print(settings.db_url)       # postgresql://...
-    print(settings.model_path)   # /path/to/models/xgboost_honest_v1.pkl
+    print(settings.model_path)   # /path/to/models/xgboost_honest_v2.pkl
 
 ⚠️ При старте валидирует типы (int, bool). Если в .env кривое значение —
 упадёт с ValidationError сразу, а не через 5 запросов.
@@ -70,9 +70,9 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 1800      # 30 минут
 
     # ---------- Пути к моделям ----------
-    model_filename: str = "xgboost_honest_v1.pkl"
-    ohe_filename: str = "onehot_encoder_v1.pkl"
-    metadata_filename: str = "metadata_v1.json"
+    model_filename: str = "xgboost_honest_v2.pkl"
+    ohe_filename: str = "onehot_encoder_v2.pkl"
+    metadata_filename: str = "metadata_v2.json"
     models_dir: str = "models"
 
     # ---------- CORS ----------
