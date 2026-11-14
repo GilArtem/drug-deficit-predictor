@@ -76,7 +76,7 @@ async function doSearch(query) {
 
         if (data.total === 0) {
             statusEl.className = 'status';
-            statusEl.textContent = 'Ничего не найдено. Попробуйте другое название.';
+            statusEl.textContent = 'Препарат не найден в реестре ЕСКЛП. Возможно, вы допустили опечатку в названии, либо данный препарат не зарегистрирован на территории РФ (снят с продаж или имеет другое торговое наименование).';
             return;
         }
 
@@ -171,38 +171,133 @@ function renderRiskModal(data) {
         : '';
 
     // Блок риска
+    // let riskHtml = '';
+    // if (data.risk) {
+    //     const cls = riskClassToCss(data.risk.class);
+    //     const p = (data.risk.probability * 100).toFixed(1);
+    //     const pl = (data.risk.probabilities.low * 100).toFixed(1);
+    //     const pm = (data.risk.probabilities.medium * 100).toFixed(1);
+    //     const ph = (data.risk.probabilities.high * 100).toFixed(1);
+
+    //     riskHtml = `
+    //         <div class="risk-block risk-${cls}">
+    //             <div>
+    //                 <div class="risk-label" style="color: var(--color-${cls});">
+    //                     ${escapeHtml(data.risk.label)} риск
+    //                 </div>
+    //                 <div class="risk-prob">Вероятность: ${p}%</div>
+    //             </div>
+    //         </div>
+    //         <div class="proba-bar">
+    //             <div class="proba-seg proba-low" style="width: ${pl}%">${pl}%</div>
+    //             <div class="proba-seg proba-medium" style="width: ${pm}%">${pm}%</div>
+    //             <div class="proba-seg proba-high" style="width: ${ph}%">${ph}%</div>
+    //         </div>
+    //     `;
+    // } else {
+    //     riskHtml = `
+    //         <div class="risk-block risk-none">
+    //             <div>
+    //                 <div class="risk-label" style="color: var(--color-muted);">Нет данных</div>
+    //                 <div class="risk-prob">Недостаточно данных для прогноза</div>
+    //             </div>
+    //         </div>
+    //     `;
+    // }
+
+    // ============================================================
+    // Блок риска — Вариант 1: светофор + уверенность + tooltip
+    // ============================================================
     let riskHtml = '';
     if (data.risk) {
         const cls = riskClassToCss(data.risk.class);
         const p = (data.risk.probability * 100).toFixed(1);
-        const pl = (data.risk.probabilities.low * 100).toFixed(1);
-        const pm = (data.risk.probabilities.medium * 100).toFixed(1);
-        const ph = (data.risk.probabilities.high * 100).toFixed(1);
+        
+        // Tooltip с пояснением — если пользователь нажмёт "ⓘ"
+        const tooltip = `Модель относит препарат к классу «${data.risk.label}» 
+                        с вероятностью ${p}%. 
+                        Это НЕ вероятность дефицита, а уверенность классификатора.
+                        Вероятности: низкий ${(data.risk.probabilities.low * 100).toFixed(1)}% / 
+                        средний ${(data.risk.probabilities.medium * 100).toFixed(1)}% / 
+                        высокий ${(data.risk.probabilities.high * 100).toFixed(1)}%`;
 
         riskHtml = `
             <div class="risk-block risk-${cls}">
-                <div>
+                <div class="risk-light">${
+                    cls === 'low' ? '🟢' :
+                    cls === 'medium' ? '🟡' : '🔴'
+                }</div>
+                <div class="risk-info">
                     <div class="risk-label" style="color: var(--color-${cls});">
                         ${escapeHtml(data.risk.label)} риск
                     </div>
-                    <div class="risk-prob">Вероятность: ${p}%</div>
+                    <div class="risk-confidence">
+                        Уверенность модели: <strong>${p}%</strong>
+                    </div>
+                    <div class="risk-tooltip" title="${escapeHtml(tooltip)}">
+                        ⓘ Что это значит?
+                    </div>
                 </div>
-            </div>
-            <div class="proba-bar">
-                <div class="proba-seg proba-low" style="width: ${pl}%">${pl}%</div>
-                <div class="proba-seg proba-medium" style="width: ${pm}%">${pm}%</div>
-                <div class="proba-seg proba-high" style="width: ${ph}%">${ph}%</div>
             </div>
         `;
     } else {
         riskHtml = `
             <div class="risk-block risk-none">
-                <div>
-                    <div class="risk-label" style="color: var(--color-muted);">Нет данных</div>
-                    <div class="risk-prob">Недостаточно данных для прогноза</div>
+                <div class="risk-light">⚪</div>
+                <div class="risk-info">
+                    <div class="risk-label" style="color: var(--color-muted);">
+                        Нет данных
+                    </div>
+                    <div class="risk-confidence">
+                        Недостаточно данных для прогноза
+                    </div>
                 </div>
             </div>
         `;
+    }
+
+    // ============================================================
+    // Дни запаса
+    // ============================================================
+    let daysOfStockHtml = '';
+    if (data.days_of_stock) {
+        const dos = data.days_of_stock;
+        if (dos.days !== null && dos.days !== undefined) {
+            const daysRounded = Math.round(dos.days * 10) / 10;
+            const colorClass =
+                daysRounded < 7 ? 'critical' :
+                daysRounded < 14 ? 'warning' : 'ok';
+            
+            const formulaTooltip = 
+                `Как рассчитано:\n` +
+                `• Упаковок на складе: ${dos.current_stock?.toLocaleString('ru-RU')}\n` +
+                `• Продаж в день: ${dos.daily_sales?.toFixed(1)} (за последний месяц / 30)\n` +
+                `• Дней запаса: ${dos.current_stock} / ${dos.daily_sales?.toFixed(1)} = ${daysRounded}\n\n` +
+                `Это оценка по текущей динамике. При изменении спроса — цифра изменится.`;
+
+            daysOfStockHtml = `
+                <div class="days-stock-block days-stock-${colorClass}">
+                    <div class="days-stock-icon">📦</div>
+                    <div class="days-stock-info">
+                        <div class="days-stock-label">Хватит запаса на:</div>
+                        <div class="days-stock-value"><strong>${daysRounded}</strong> дней</div>
+                        <div class="days-stock-tooltip" title="${escapeHtml(formulaTooltip)}">
+                            ⓘ Как рассчитано?
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (dos.fallback_message) {
+            daysOfStockHtml = `
+                <div class="days-stock-block days-stock-unknown">
+                    <div class="days-stock-icon">📦</div>
+                    <div class="days-stock-info">
+                        <div class="days-stock-label">Дни запаса:</div>
+                        <div class="days-stock-message">${escapeHtml(dos.fallback_message)}</div>
+                    </div>
+                </div>
+            `;
+        }
     }
 
     // Snapshot
@@ -231,14 +326,39 @@ function renderRiskModal(data) {
             }).join('')}
         </ul>`
         : '';
+    
+    
+    // ============================================================
+    // Производители
+    // ============================================================
+    const producers = data.producers || [];
+    const producersHtml = producers.length > 0
+        ? `
+        <h3 class="section-title">Производители (${producers.length})</h3>
+        <ul class="producers-list">
+            ${producers.map(p => `
+                <li class="producer-item">
+                    <span class="producer-name">${escapeHtml(p.name)}</span>
+                    ${p.country ? `<span class="producer-country">${escapeHtml(p.country)}</span>` : ''}
+                </li>
+            `).join('')}
+        </ul>
+        <p class="producers-hint">
+            💡 Свяжитесь с производителями напрямую для уточнения сроков поставки.
+        </p>
+        `
+        : '';
+
 
     body.innerHTML = `
         <h2>${escapeHtml(data.standard_inn)}</h2>
         <p class="modal-subtitle">${escapeHtml(subtitle)}</p>
         ${tradesHtml}
         ${riskHtml}
+        ${daysOfStockHtml}
         ${featuresHtml}
         ${recsHtml}
+        ${producersHtml}
     `;
 }
 

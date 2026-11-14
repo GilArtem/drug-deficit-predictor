@@ -154,7 +154,7 @@ main { flex: 1; padding: 32px 0; }
 .modal h2 { font-size: 1.3rem; margin-bottom: 4px; padding-right: 40px; }
 .modal-subtitle { color: var(--color-muted); margin-bottom: 16px; }
 
-.risk-block {
+/* .risk-block {
     display: flex; align-items: center; gap: 12px;
     padding: 16px; border-radius: var(--radius);
     margin: 16px 0;
@@ -165,9 +165,50 @@ main { flex: 1; padding: 32px 0; }
 .risk-block.risk-none   { background: #f9fafb; }
 
 .risk-label { font-size: 1.3rem; font-weight: 700; }
-.risk-prob { color: var(--color-muted); font-size: 0.9rem; }
+.risk-prob { color: var(--color-muted); font-size: 0.9rem; } */
 
-.proba-bar {
+.risk-block {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px; border-radius: var(--radius);
+    margin: 16px 0;
+}
+.risk-block.risk-low    { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.risk-block.risk-medium { background: #fffbeb; border: 1px solid #fde68a; }
+.risk-block.risk-high   { background: #fef2f2; border: 1px solid #fecaca; }
+.risk-block.risk-none   { background: #f9fafb; border: 1px solid var(--color-border); }
+
+.risk-light {
+    font-size: 3rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.risk-info {
+    display: flex; flex-direction: column; gap: 4px;
+}
+
+.risk-label {
+    font-size: 1.4rem; font-weight: 700;
+}
+
+.risk-confidence {
+    font-size: 1rem; color: var(--color-muted);
+}
+.risk-confidence strong {
+    color: var(--color-text); font-weight: 700; font-size: 1.15rem;
+}
+
+.risk-tooltip {
+    font-size: 0.85rem; color: var(--color-primary);
+    cursor: help;
+    text-decoration: underline dotted;
+    margin-top: 4px;
+}
+.risk-tooltip:hover {
+    color: var(--color-primary-hover);
+}
+
+/* .proba-bar {
     display: flex; height: 32px; border-radius: var(--radius);
     overflow: hidden; margin: 12px 0; font-size: 0.75rem; font-weight: 600;
 }
@@ -177,7 +218,7 @@ main { flex: 1; padding: 32px 0; }
 }
 .proba-low    { background: var(--color-low); }
 .proba-medium { background: var(--color-medium); }
-.proba-high   { background: var(--color-high); }
+.proba-high   { background: var(--color-high); } */
 
 .section-title {
     font-size: 0.95rem; font-weight: 600;
@@ -210,4 +251,70 @@ main { flex: 1; padding: 32px 0; }
 @media (max-width: 640px) {
     .search-form { flex-direction: column; }
     .results-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Блок "Дни запаса"
+   ============================================================ */
+.days-stock-block {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 20px; border-radius: var(--radius);
+    margin: 16px 0; border: 2px solid;
+}
+.days-stock-ok { background: #f0fdf4; border-color: #10b981; }
+.days-stock-warning { background: #fffbeb; border-color: #f59e0b; }
+.days-stock-critical {
+    background: #fef2f2; border-color: #ef4444;
+    animation: pulse-critical 2s infinite;
+}
+.days-stock-unknown { background: #f9fafb; border-color: var(--color-border); }
+
+@keyframes pulse-critical {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+.days-stock-icon { font-size: 2.5rem; flex-shrink: 0; }
+.days-stock-info { display: flex; flex-direction: column; gap: 2px; }
+.days-stock-label {
+    font-size: 0.85rem; color: var(--color-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.days-stock-value { font-size: 1.2rem; }
+.days-stock-value strong {
+    font-size: 1.8rem; font-weight: 700; color: var(--color-text);
+}
+.days-stock-critical .days-stock-value strong { color: #dc2626; }
+.days-stock-warning .days-stock-value strong { color: #d97706; }
+.days-stock-ok .days-stock-value strong { color: #059669; }
+.days-stock-tooltip {
+    font-size: 0.8rem; color: var(--color-primary);
+    cursor: help; text-decoration: underline dotted;
+}
+.days-stock-message {
+    font-size: 0.9rem; color: var(--color-muted); font-style: italic;
+}
+
+/* ============================================================
+   Блок "Производители"
+   ============================================================ */
+.producers-list {
+    list-style: none; display: flex; flex-direction: column;
+    gap: 8px; margin-bottom: 12px;
+}
+.producer-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--color-bg);
+    border-radius: 6px; border-left: 3px solid var(--color-primary);
+    font-size: 0.9rem;
+}
+.producer-name { font-weight: 500; }
+.producer-country {
+    font-size: 0.8rem; color: var(--color-muted);
+    padding: 2px 8px; background: white; border-radius: 4px;
+}
+.producers-hint {
+    font-size: 0.85rem; color: var(--color-muted);
+    padding: 8px 12px; background: #eff6ff;
+    border-radius: 6px; border-left: 3px solid var(--color-primary);
 }

@@ -137,6 +137,35 @@ class FeaturesSnapshot(BaseModel):
     has_atc_substitutes: bool = Field(..., description="Есть аналоги по ATC")
     avg_age: float = Field(..., description="Средний возраст регистрации, лет")
 
+# ============================================================
+# Производители
+# ============================================================
+class Producer(BaseModel):
+    """
+    Один производитель: имя + страна.
+    
+    Используется для отображения в UI:
+    • Название (ООО «ОЗОН»)
+    • Страна (РОССИЯ)
+    """
+    name: str = Field(..., description="Название производителя (канонизированное)")
+    country: Optional[str] = Field(None, description="Страна-производитель")
+
+# ============================================================
+# Дни запаса
+# ============================================================
+class DaysOfStock(BaseModel):
+    """
+    Сколько дней хватит текущего запаса.
+    
+    Если нет динамики — все поля None + fallback_message.
+    """
+    days: Optional[float] = Field(None, ge=0, description="Сколько дней хватит запаса")
+    current_stock: Optional[int] = Field(None, ge=0, description="Упаковок на складе сейчас")
+    daily_sales: Optional[float] = Field(None, ge=0, description="Продажи в день (30 дней)")
+    fallback_message: Optional[str] = Field(
+        None, description="Пояснение, если дней запаса нет (нет динамики)"
+    )
 
 class RiskResponse(BaseModel):
     """
@@ -155,11 +184,22 @@ class RiskResponse(BaseModel):
     risk: Optional[RiskInfo] = Field(None, description="Информация о риске (None, если нет данных)")
 
     features_snapshot: FeaturesSnapshot
+    
     dynamic_data_available: bool = Field(
         ..., description="Есть ли продажи/остатки для прогноза"
     )
+    
     recommendations: list[str] = Field(
         default_factory=list, description="Рекомендации по действиям"
+    )
+
+    producers: list[Producer] = Field(
+        default_factory=list,
+        description="Список производителей (для заказа)",
+    )
+    days_of_stock: Optional[DaysOfStock] = Field(
+        None,
+        description="Сколько дней хватит запаса (для принятия решения)",
     )
 
 

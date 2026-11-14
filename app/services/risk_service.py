@@ -30,7 +30,9 @@ from sqlalchemy.engine import Engine
 from app.core.feature_builder import build_features
 from app.core.model_loader import CLASS_LABELS, predict_proba
 from app.schemas.response import (
+    DaysOfStock,
     FeaturesSnapshot,
+    Producer,
     RiskClass,
     RiskInfo,
     RiskProbabilities,
@@ -56,6 +58,21 @@ _SQL_STATIC = text("""
     WHERE dp.smnn_code = :smnn_code
       AND dp.actual = TRUE
     GROUP BY dp.smnn_code, dp.standard_inn, dp.standard_form, dp.standard_doze
+""")
+
+# ============================================================
+# SQL: производители (уникальные) для СМНН
+# ============================================================
+
+_SQL_PRODUCERS = text("""
+    SELECT DISTINCT
+        dp.name_producer AS name,
+        dp.country AS country
+    FROM raw_data.drug_products dp
+    WHERE dp.smnn_code = :smnn_code
+      AND dp.actual = TRUE
+      AND dp.name_producer IS NOT NULL
+    ORDER BY dp.name_producer
 """)
 
 
@@ -98,6 +115,16 @@ def get_risk(
     standard_doze = row["standard_doze"]
     trade_names = list(row["trade_names"] or [])
 
+    # --- 1.5. Производители ---
+    with engine.connect() as conn:
+        producers_rows = conn.execute(
+            _SQL_PRODUCERS, {"smnn_code": smnn_code}
+        ).mappings().all()
+    producers = [
+        Producer(name=r["name"], country=r["country"])
+        for r in producers_rows
+    ]
+
     # --- 2. Признаки (74 числа) ---
     features = build_features(smnn_code)
     if features is None:
@@ -127,6 +154,8 @@ def get_risk(
                 "Недостаточно данных о продажах/остатках для прогноза.",
                 "Проверьте актуальность данных в системе учёта.",
             ],
+            producers=producers,                                         
+            days_of_stock=_compute_days_of_stock(features, False), 
         )
 
     # --- 5. Прогноз ---
@@ -166,6 +195,8 @@ def get_risk(
             features_snapshot=snapshot,
             dynamic_data_available=True,
             recommendations=recommendations,
+            producers=producers,                                         
+            days_of_stock=_compute_days_of_stock(features, True),
         )
 
     except Exception as e:
@@ -182,6 +213,8 @@ def get_risk(
             recommendations=[
                 f"Ошибка при расчёте прогноза. Повторите позже.",
             ],
+            producers=producers,                                         
+            days_of_stock=_compute_days_of_stock(features, True),
         )
 
 
@@ -199,6 +232,50 @@ def _make_snapshot(features: pd.DataFrame) -> FeaturesSnapshot:
         is_narcotic=bool(row["is_narcotic"]),
         has_atc_substitutes=bool(row["has_atc_substitutes"]),
         avg_age=float(row["avg_age"]),
+    )
+
+# ============================================================
+# Расчет дней запаса
+# ============================================================
+
+def _compute_days_of_stock(features: pd.DataFrame, dynamic_available: bool) -> DaysOfStock:
+    """
+    Считает, сколько дней хватит текущего запаса.
+    
+    Формула:
+        daily_sales = sales_last_month / 30
+        days_of_stock = current_stock / daily_sales
+    """
+    if not dynamic_available:
+        return DaysOfStock(
+            days=None,
+            current_stock=None,
+            daily_sales=None,
+            fallback_message=(
+                "Недостаточно данных о продажах/остатках. "
+                "Прогноз основан только на статических признаках."
+            ),
+        )
+    
+    row = features.iloc[0]
+    current_stock = int(row.get('current_stock', 0))
+    sales_last_month = int(row.get('sales_last_month', 0))
+    
+    if sales_last_month <= 0:
+        return DaysOfStock(
+            days=None,
+            current_stock=current_stock,
+            daily_sales=None,
+            fallback_message="Нет данных о продажах — невозможно рассчитать дни запаса.",
+        )
+    
+    daily_sales = sales_last_month / 30.0
+    days = current_stock / daily_sales
+    
+    return DaysOfStock(
+        days=round(days, 1),
+        current_stock=current_stock,
+        daily_sales=round(daily_sales, 1),
     )
 
 
