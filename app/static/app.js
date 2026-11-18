@@ -12,6 +12,15 @@
 
 const API_BASE = '';
 
+// ============================================================
+// Состояние пагинации
+// ============================================================
+const PAGE_SIZE = 20;
+let currentQuery = '';
+let currentOffset = 0;
+let totalResults = 0;
+
+
 // ---------- Утилиты ----------
 
 function $(id) { return document.getElementById(id); }
@@ -42,7 +51,7 @@ function riskLabel(cls, fallback) {
 
 // ---------- Поиск ----------
 
-async function doSearch(query) {
+async function doSearch(query, offset = 0) {
     const statusEl = $('status');
     const btn = $('search-btn');
     const resultsSection = $('results-section');
@@ -50,13 +59,16 @@ async function doSearch(query) {
     const titleEl = $('results-title');
     const metaEl = $('results-meta');
 
+    currentQuery = query;
+    currentOffset = offset;
+
     statusEl.className = 'status';
     statusEl.textContent = 'Поиск...';
     btn.disabled = true;
     resultsSection.classList.add('hidden');
 
     try {
-        const url = `${API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=20`;
+        const url = `${API_BASE}/api/search?q=${encodeURIComponent(query)}` + `&limit=${PAGE_SIZE}&offset=${offset}`;
         const resp = await fetch(url);
 
         if (resp.status === 422) {
@@ -73,18 +85,29 @@ async function doSearch(query) {
         }
 
         const data = await resp.json();
+        totalResults = data.total;
 
         if (data.total === 0) {
             statusEl.className = 'status';
-            statusEl.textContent = 'Препарат не найден в реестре ЕСКЛП. Возможно, вы допустили опечатку в названии, либо данный препарат не зарегистрирован на территории РФ (снят с продаж или имеет другое торговое наименование).';
+            statusEl.innerHTML = `
+                <div class="not-found-message">
+                    <div class="not-found-icon">🔍</div>
+                    <div class="not-found-text">
+                        <strong>Препарат не найден в реестре ЕСКЛП.</strong><br>
+                        Возможно, вы допустили опечатку в названии, либо данный препарат
+                        не зарегистрирован на территории РФ (снят с продаж или имеет другое торговое наименование).
+                    </div>
+                </div>
+            `;
             return;
         }
 
         statusEl.textContent = '';
         titleEl.textContent = `Найдено форм: ${data.total}`;
-        metaEl.textContent = `Показано ${data.items.length} из ${data.total}`;
+        metaEl.textContent = `Показано ${offset + 1}–${offset + data.items.length} из ${data.total}`;
 
         renderResults(data.items);
+        renderPagination();
         resultsSection.classList.remove('hidden');
     } catch (err) {
         console.error(err);
@@ -128,6 +151,93 @@ function renderResults(items) {
         card.addEventListener('click', () => openRisk(item.smnn_code));
         container.appendChild(card);
     }
+}
+
+//  Отрисовка кнопок
+function renderPagination() {
+    const container = $('pagination');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+    if (totalPages <= 1) {
+        container.classList.add('hidden');
+        return;
+    }
+    container.classList.remove('hidden');
+
+    const currentPage = Math.floor(currentOffset / PAGE_SIZE) + 1;
+
+    // Кнопка "Назад"
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'pagination-btn';
+    prevBtn.textContent = '← Назад';
+    prevBtn.disabled = currentOffset <= 0;
+    prevBtn.addEventListener('click', () => {
+        if (currentOffset > 0) {
+            doSearch(currentQuery, Math.max(0, currentOffset - PAGE_SIZE));
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+    container.appendChild(prevBtn);
+
+    // Номера страниц (упрощённо: показываем все, если <= 7; иначе с «...»)
+    const pageNumbers = buildPageNumbers(currentPage, totalPages);
+    for (const p of pageNumbers) {
+        if (p === '...') {
+            const span = document.createElement('span');
+            span.className = 'pagination-ellipsis';
+            span.textContent = '…';
+            container.appendChild(span);
+        } else {
+            const pageBtn = document.createElement('button');
+            pageBtn.className = 'pagination-btn' + (p === currentPage ? ' pagination-btn-active' : '');
+            pageBtn.textContent = p;
+            pageBtn.addEventListener('click', () => {
+                if (p !== currentPage) {
+                    doSearch(currentQuery, (p - 1) * PAGE_SIZE);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+            container.appendChild(pageBtn);
+        }
+    }
+
+    // Кнопка "Вперёд"
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'pagination-btn';
+    nextBtn.textContent = 'Вперёд →';
+    nextBtn.disabled = currentOffset + PAGE_SIZE >= totalResults;
+    nextBtn.addEventListener('click', () => {
+        if (currentOffset + PAGE_SIZE < totalResults) {
+            doSearch(currentQuery, currentOffset + PAGE_SIZE);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+    container.appendChild(nextBtn);
+}
+
+function buildPageNumbers(current, total) {
+    // Всего <= 7 — показываем все
+    if (total <= 7) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages = [];
+    pages.push(1);
+
+    if (current > 3) pages.push('...');
+
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    if (current < total - 2) pages.push('...');
+    pages.push(total);
+
+    return pages;
 }
 
 // ---------- Модалка прогноза ----------
