@@ -49,6 +49,7 @@ data/raw/*.csv
 data/raw/*.xlsx
 data/raw/*.xls
 data/raw/*.parquet
+*.parquet
 
 # Обработанные данные
 data/processed/*.csv
@@ -120,3 +121,6 @@ _test_risk.py
 _test_rec.py
 _test_routers.py
 _test_v2.py
+
+# ---------- meta catboost ----------
+notebooks/catboost_info
